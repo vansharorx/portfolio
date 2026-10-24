@@ -1482,3 +1482,37 @@ if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
     layout(); draw();
   }
 })();
+
+
+// ---------- LeetCode sticker count on touch devices (the hover block above exits early on phones) ----------
+(() => {
+  if (matchMedia("(hover: hover) and (pointer: fine)").matches) return;   // desktop already handled above
+  const el = document.querySelector(".stickers .s1 strong");
+  if (!el) return;
+  const li = el.closest("li");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // wait out the count-up animation if it is already running, so it doesn't overwrite the real number
+  const set = n => setTimeout(() => { el.textContent = n; }, li && li.classList.contains("in") && !reduce ? 2000 : 0);
+
+  // show the last known number instantly
+  try {
+    const c = JSON.parse(localStorage.getItem("lc-stats"));
+    if (c && c.total >= 0) set(c.total);
+  } catch (e) {}
+
+  (async () => {
+    const u = "vansharorx";
+    for (const url of ["https://leetcode-stats.tashif.codes/" + u, "https://leetcode-stats-api.herokuapp.com/" + u]) {
+      try {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
+        const r = await fetch(url, { signal: ctl.signal }); clearTimeout(to);
+        if (!r.ok) continue;
+        const j = await r.json(), total = +j.totalSolved;
+        if (!Number.isFinite(total) || (j.status && j.status !== "success")) continue;
+        try { localStorage.setItem("lc-stats", JSON.stringify({ total, e: +j.easySolved || 0, m: +j.mediumSolved || 0, h: +j.hardSolved || 0 })); } catch (e) {}
+        set(total);
+        return;
+      } catch (e) { /* try next mirror */ }
+    }
+  })();
+})();
