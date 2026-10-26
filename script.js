@@ -1407,7 +1407,7 @@ if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
     };
     // nobody around: seconds since the last touch. Each gesture starts at its time (or as soon as the previous one has
     // finished); after the last one the count starts over.
-    const PLAN = [{ at: 5, run: "nudge" }, { at: 10, run: "bored" }, { at: 20, run: "giveup" }];
+    const PLAN = [{ at: 2, run: "bored" }, { at: 9, run: "nudge" }, { at: 14, run: "giveup" }];
 
     async function life() {
       await intro();
