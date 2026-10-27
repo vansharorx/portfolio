@@ -82,6 +82,7 @@ cycle();
 
   const HINT = "Click me for a tour!";
   const TAKEOFF = 260;                       // ms of crouching before the bird leaves a perch
+  const POOP_EVERY = 30000;                  // ms between automatic drops
   // [name, duration ms, weight] for the little things it does while sitting
   const ACTS = [["look", 2000, 3], ["peck", 1600, 2], ["preen", 2200, 1], ["wag", 900, 2], ["ruffle", 950, 1], ["hop", 800, 1], ["turn", 3200, 1]];
   const ACT_CLASSES = ACTS.map(a => "act-" + a[0]);
@@ -238,15 +239,15 @@ cycle();
     dove.focus({ preventScroll: true });
     flyHome(true);
   }
-  dove.addEventListener("click", () => { if (heldPoop) { heldPoop = false; return; } startTour(); });
+  dove.addEventListener("click", () => startTour());
   dove.addEventListener("contextmenu", e => e.preventDefault());
   bubble.addEventListener("click", () => { if (hintOn) startTour(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && touring) endTour(); });
 
-  // ----- secret: the falcon drops a present. Long-press it for a second, or type "poop" anywhere. -----
+  // ----- the falcon drops a present automatically, once every 30 seconds -----
   const SOLID = ".card, .panel, .contact, .stickers li, .badge, .stack, .btn";
   const splats = [];
-  let heldPoop = false, lastDrop = 0, holdTimer = null, typed = "";
+  let lastDrop = 0;
 
   function splat(x, y) {
     const el = document.createElement("div");
@@ -289,26 +290,15 @@ cycle();
     fall.onfinish = () => { drop.remove(); splat(x, land); };
   }
 
-  const cancelHold = () => clearTimeout(holdTimer);
-  dove.addEventListener("pointerdown", e => {
-    if (e.button) return;
-    heldPoop = false; cancelHold();
-    const sx = e.clientX, sy = e.clientY;
-    holdTimer = setTimeout(() => { heldPoop = true; dropPoop(); }, 1000);
-    const move = ev => { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 10) cancelHold(); };
-    dove.addEventListener("pointermove", move);
-    const up = () => { cancelHold(); dove.removeEventListener("pointermove", move); setTimeout(() => { heldPoop = false; }, 400); };
-    dove.addEventListener("pointerup", up, { once: true });
-    dove.addEventListener("pointercancel", up, { once: true });
-    dove.addEventListener("pointerleave", cancelHold, { once: true });
-  });
-  document.addEventListener("keydown", e => {
-    if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
-    const t = e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    typed = (typed + e.key.toLowerCase()).slice(-4);
-    if (typed === "poop") { typed = ""; dropPoop(); }
-  });
+  // dropPoop() only works while the falcon is on screen. If it isn't (branch scrolled away, tab hidden),
+  // retry every second, and start the next 30 s wait only after a real drop.
+  function autoPoop() {
+    if (document.hidden) { setTimeout(autoPoop, 1000); return; }
+    const before = lastDrop;
+    dropPoop();
+    setTimeout(autoPoop, lastDrop !== before ? POOP_EVERY : 1000);
+  }
+  setTimeout(autoPoop, POOP_EVERY);                           // first drop 30 s after the page loads
 
   // ----- frame loop -----
   function render() {
